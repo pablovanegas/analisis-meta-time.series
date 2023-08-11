@@ -1,0 +1,684 @@
+---
+title: "Exposicion META"
+author: " Juan Pablo Vanegas Moreno- Mallerly Gallego Morales"
+date: "30/11/2022"
+subtitle: |
+  | Universidad Nacional de Colombia
+  | Series de Tiempo Univariadas 2022-2S
+  | Medellín, Colombia
+  | 2022
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: github
+    df_print: kable
+    toc: yes
+  toc_float:
+    toc_collapsed: yes
+    toc_depth: 3
+    number_sections: yes
+  pdf_document:
+    keep_tex: yes
+    latex_engine: xelatex
+    number_sections: yes
+    df_print: kable
+header-includes:
+- \usepackage{booktabs}
+- \usepackage{longtable}
+- \usepackage{array}
+- \usepackage{multirow}
+- \usepackage{wrapfig}
+- \usepackage{float}
+- \usepackage{colortbl}
+- \usepackage{pdflscape}
+- \usepackage{tabu}
+- \usepackage{threeparttable}
+- \usepackage{threeparttablex}
+- \usepackage[normalem]{ulem}
+- \usepackage{makecell}
+- \usepackage{xcolor}
+editor_options:
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, encoding= FALSE, warning= FALSE)
+```
+
+
+# Acciones de META
+
+![](im3.jpg){width='700px'}
+
+https://cnnespanol.cnn.com/2021/12/22/facebook-2021-escrutinio-zuckerberg-redes-sociales-2021-orix/?fbclid=IwAR3iii3AeX90CcdNfb_7dZ7jMqg0v7U5nSRnNW2xUMkk7s4nCm0aPbLnEco#:~:text=Facebook%2C%20algo%20no%20anda%20bien,personas%20adolescentes%2C%20en%20especial%20mujeres
+
+![](im2.jpg){width='700px'}
+
+https://www.ambito.com/informacion-general/meta/revelara-su-progreso-el-verso-y-la-realidad-virtual-n5528580
+
+# Marco Teorico
+META PLATFORMS INC., anteriormente Facebook Inc. Construye tecnologías que ayudan a las personas a encontrar comunidades y a desarrollar negocios. Los productos de la compañía permiten a las personas conectarse y compartir con amigos y familiares a través de dispositivos móviles, ordenadores personales, auriculares de realidad virtual y dispositivos para el hogar. La empresa opera a través de dos segmentos: Familia de aplicaciones (FoA) y Reality Labs (RL). FoA incluye facebook, Instagram, Messenger, WhatsApp y otros servicios. RL incluye hardware, software y contenidos de consumo relacionados con la realidad virtual aumentada.
+
+Primeramente nos llamó la atención exponer sobre esto porque queríamos ver cómo las declaraciones de Mark y su proyecto del metaverso afectaron las acciones, opiniones que iban en torno a virtualizar reuniones laborales, sociales, etc. Aspectos que a nuestro parecer son importantes teniendo en cuenta el cómo se adaptó el mundo a la virtualidad después de la pandemia y cómo esto repercutió de manera positiva o negativa en las personas.
+
+
+```{r}
+library(tidyverse)
+library(magrittr)
+library(forecast)
+library(janitor)
+library(lubridate)
+require(tsoutliers)
+library(lmtest)
+library(TSstudio)
+library(kableExtra)
+
+```
+
+
+```{r}
+meta <- read.csv("META.csv")
+meta$Date <- as.Date(meta$Date)
+```
+
+```{r}
+meta$Date %>% head()
+
+```
+
+```{r}
+meta$Date %>% tail()
+```
+
+La base de datos encontrada en el sitio de Yahoo finanzas cuenta con 7 columnas clasificadas por: fecha, apertura, al alza, a la baja, cierre, cierre ajustado (precio de cierre después de los ajustes para todas las distribuciones de splits y dividendos aplicables) y volumen (cantidad de un activo concreto en el que se invierte durante un periodo determinado).
+La base estaba ordenada por fecha y no existían datos faltantes,  sin embargo se tiene un salto temporal al principio, se pasa de 2012-05-18 hasta 2012-05-21, por lo que se va a suprimir este dato para tener una frecuencia diaria.
+
+
+
+```{r}
+meta <- meta[2:2640,]
+```
+
+# Serie de tiempo
+
+```{r}
+meta %>% ggplot(aes(x= Date,y= Close)) + geom_line(col ="blue")
+```
+
+
+
+# Modelos propuestos para backtesting 
+
+## Modelo 1 
+Antes del cambio de tendencia
+
+```{r}
+train <- meta %>% filter(Date < as.Date("2021-09-06"))
+test <- meta %>% filter(Date >= as.Date("2021-09-06"))
+```
+
+```{r}
+mod1 <- auto.arima(train$Close, stepwise = F, approximation = F, stationary = F)
+```
+
+```{r}
+mod1 %>% summary()
+```
+
+```{r}
+checkresiduals(mod1)
+```
+
+```{r}
+qqnorm(mod1$residuals)
+qqline(mod1$residuals)
+shapiro.test(mod1$residuals)
+coeftest(mod1)
+```
+
+Para el modelo ARIMA(2,1,3), tenemos una varianza no constante con bastantes datos atípicos a resaltar. En el gráfico ACF  hay 6 lags que sobresalen de la banda de confianza del 96%, por ende no se podría afirmar que los residuales no están correlacionados. Ésto se confirma al realizar el test de Ljung-Box, donde el p-valor resultante es de 0.006275<0.04.
+Respecto a la normalidad, tanto  el gráfico Q-Q como en la prueba de Shapiro-Wilks nos indican no normalidad.
+
+## Modelo 2
+Despues del cambio de tendencia
+
+```{r}
+train2 <- meta %>% filter(Date >= as.Date("2021-09-06") & Date < as.Date("2022-10-01"))  
+test2 <- meta %>% filter(Date >= as.Date("2022-10-01"))
+```
+
+```{r}
+mod2 <- auto.arima(train2$Close, stepwise = F, approximation = F, stationary = F)
+```
+
+```{r}
+mod2 %>% summary()
+#Caminata aleatoria
+```
+
+```{r}
+checkresiduals(mod2)
+```
+
+```{r}
+qqnorm(mod2$residuals)
+qqline(mod2$residuals)
+shapiro.test(mod2$residuals)
+coeftest(mod2)
+```
+
+En este modelo ARIMA(0,1,0) apreciamos varias cosas:
+La primera, son los dos datos atípicos que interrumpen una aparente varianza constante. También, en el gráfico ACF, todos los lags se encuentran por dentro de la banda de confianza de aproximadamente el 90%, por lo que sus residuales no son correlacionados. Esta conclusión toma fuerza con el test de Ljung-Box, el cual nos arroja un p-valor de 0.6235>0.10.
+Para analizar la normalidad, se construyó un gráfico Q-Q, como se podrá notar no tiene una aparente distribución normal, y al realizar la prueba de Shapiro-Wilks terminamos concluyendo la inexistencia de normalidad. 
+Pese a todo esto, el modelo corresponde a una caminata aleatoria, esto corresponde a un proceso aleatorio dónde la posición de un dato en cierto instante depende solo de su posición en algún instante previo y alguna variable aleatoria que determina su subsecuente dirección y la longitud de paso.
+
+# Modelo 3 
+Teniendo en cuenta toda la serie de tiempo
+
+```{r}
+train3 <- meta %>% filter(Date < as.Date("2022-11-02"))
+test3 <- meta %>% filter(Date >= as.Date("2022-11-02"))
+```
+
+```{r}
+mod3 <- auto.arima(train3$Close, stepwise = F, approximation = F, stationary = F)
+```
+
+```{r}
+mod3 %>% summary()
+```
+
+```{r}
+checkresiduals(mod3)
+```
+
+```{r}
+qqnorm(mod3$residuals)
+qqline(mod3$residuals)
+shapiro.test(mod3$residuals)
+coeftest(mod3)
+```
+
+En el caso del modelo ARIMA(3,1,1), tampoco se aprecia una varianza constante entre los datos, con 3 datos atípicos que resaltan más que el resto.
+En el gráfico ACF, quizás con una confianza del 95% no serían tan notorios los lags que sobresalen por fuera de la banda, el test de Ljung-Box igual nos arroja un p-valor de 0.03884 para un alfa de 0.04.
+En la normalidad sucede el mismo problema, tanto para el gráfico como para el test de Shapiro-Wilks no existe normalidad, pues en este último su p-valor es demasiado pequeño, menor que el alfa 0.04.
+
+
+# Precision de cada modelo para 8 datos
+
+## Modelo 1 
+
+```{r}
+foremod1 <- forecast(mod1, h = 8)
+```
+
+
+```{r}
+accuracy(foremod1, test[293:300,]$Close)
+```
+
+```{r}
+intento <- test[293:300,]
+intento$pred <- foremod1$mean
+intento$li95 <- foremod1$lower[,2]
+intento$ls95 <- foremod1$upper[,2]
+
+ggplot(intento, aes(x=Date, y=Close))+ geom_line()+
+  geom_line(data=intento, aes(x=Date, y=pred), col="red")+
+  geom_line(data=intento, aes(x=Date, y=li95), col="blue")+
+  geom_line(data=intento, aes(x=Date, y=ls95), col="blue") 
+
+```
+
+Si se compara con los valores de los 8 valores despues del cambio de tendencia se ve que no era tan malo el pronostico, Sin embargo ese cambio de tendencia radical si afecto los pronosticos para los valores actuales
+
+```{r}
+intento1 <- test[0:8,]
+intento1$pred <- foremod1$mean
+intento1$li95 <- foremod1$lower[,2]
+intento1$ls95 <- foremod1$upper[,2]
+
+ggplot(intento1, aes(x=Date, y=Close))+ geom_line()+
+  geom_line(data=intento1, aes(x=Date, y=pred), col="red")+
+  geom_line(data=intento1, aes(x=Date, y=li95), col="blue")+
+  geom_line(data=intento1, aes(x=Date, y=ls95), col="blue") 
+```
+
+
+## Modelo 2
+
+```{r}
+foremod2 <- forecast(mod2, h = 8)
+```
+
+```{r}
+intento2 <- test2[23:30,]
+intento2$pred <- foremod2$mean
+intento2$li95 <- foremod2$lower[,2]
+intento2$ls95 <- foremod2$upper[,2]
+
+ggplot(test2, aes(x=Date, y=Close))+ geom_line()+
+  geom_line(data=intento2, aes(x=Date, y=pred), col="red")+
+  geom_line(data=intento2, aes(x=Date, y=li95), col="blue")+
+  geom_line(data=intento2, aes(x=Date, y=ls95), col="blue") 
+```
+
+
+```{r}
+accuracy(foremod2, test2[23:30,]$Close)
+```
+
+## Modelo 3 
+
+
+```{r}
+foremod3 <- forecast(mod3, h = 8)
+```
+
+
+```{r}
+test3$pred <- foremod3$mean
+test3$li95 <- foremod3$lower[,2]
+test3$ls95 <- foremod3$upper[,2]
+
+ggplot(test3, aes(x=Date, y=Close))+ geom_line()+
+  geom_line(data=test3, aes(x=Date, y=pred), col="red")+
+  geom_line(data=test3, aes(x=Date, y=li95), col="blue")+
+  geom_line(data=test3, aes(x=Date, y=ls95), col="blue") 
+```
+
+
+```{r}
+accuracy(foremod3, test3$Close)
+```
+
+
+## Conclusiones
+
+- El modelo 1 queda descartado pues como se esperaba el cambio de tendencia afecto gravemente la precision de las predicciones sin embargo intentar a pesar del cambio de tendencia el modelo pudo haber servido para predecir los valores de las fechas mas cercanas.
+
+- No se suguiere hacer predicciones con el modelo que tiene en cuenta el cambio de tendencia (modelo 2) pues este es una "Caminata al azar"
+
+- En cuanto al modelo que tiene en cuenta toda la base de datos (modelo 3) se nota una linea recta por lo que se sugiere hacer alguna transformacion
+
+## Metodo Holt
+
+Se va a proceder a aplicar el metodo holt para el modelo 3 para ver si mejoran las predicciones con los nuevos parametros $\alpha$ y $\beta$  al momento de usarlas en un suavizamiento
+
+
+
+```{r}
+cierre3 <- ts(meta$Close)
+```
+
+```{r}
+cierre3_par <-ts_split(cierre3, sample.out = 8)
+```
+
+```{r}
+train3 <- cierre3_par$train
+test3 <- cierre3_par$test
+```
+
+```{r}
+mod3fore_holt <- holt(train3, h =8)
+mod3fore_holt$model
+```
+
+```{r}
+fore3_holt <- forecast(mod3fore_holt, h = 8)
+```
+
+```{r}
+accuracy(fore3_holt, test3)
+```
+
+
+```{r}
+test_forecast(cierre3, forecast.obj = mod3fore_holt,
+  test = test3)
+```
+
+
+## Modelo con transformacion logaritmica 
+
+
+```{r}
+train3_log <- log(train3)
+test3_log <- log(test3)
+```
+
+```{r}
+mod3_log <- auto.arima(train3_log,stepwise = F, approximation = F, stationary = F)
+```
+
+```{r}
+foremod3_log <- forecast(mod3_log, h = 8)
+```
+
+```{r}
+test_forecast(log(cierre3), forecast.obj = foremod3_log,
+  test = test3_log)
+```
+
+```{r}
+accuracy(foremod3_log, test3_log)
+```
+
+```{r}
+checkresiduals(foremod3_log)
+qqnorm(foremod3_log$residuals)
+qqline(foremod3_log$residuals)
+shapiro.test(foremod3_log$residuals)
+coeftest(mod3_log)
+```
+
+## Modelo con transformacion Box-Cox 
+
+```{r}
+lambda <- BoxCox.lambda(train3)
+```
+
+```{r}
+train3_box <- BoxCox(train3, lambda=lambda)
+test3_box <- BoxCox(test3, lambda=lambda)
+```
+
+```{r}
+mod3_box <- auto.arima(train3_box,stepwise = F, approximation = F, stationary = F)
+```
+
+```{r}
+foremod3_box <- forecast(mod3_box, h = 8)
+```
+
+```{r}
+test_forecast(BoxCox(cierre3, lambda = lambda), forecast.obj = foremod3_box,
+  test = test3_box)
+```
+
+```{r}
+accuracy(foremod3_box, test3_box)
+```
+
+```{r}
+checkresiduals(foremod3_box)
+qqnorm(foremod3_box$residuals)
+qqline(foremod3_box$residuals)
+shapiro.test(foremod3_box$residuals)
+coeftest(mod3_box)
+```
+
+
+# Outliers para el mejor modelo 
+
+# Para 8 datos a predecir
+```{r}
+nombres <- c("Modelo1", "Modelo3", "Modelo3Holt","Modelo3_log","Modelo3_BoxCox")
+MAPE <- c(284.061105,6.936814,7.090775,6.3210437,7.200789 )
+resumen8 <- data.frame(Modelos = nombres, MAPES = MAPE)
+```
+
+# Para 30 datos a predecir
+```{r}
+nombres <- c("Modelo1", "Modelo3", "Modelo3Holt","Modelo3_log","Modelo3_BoxCox")
+MAPE <- c(225.778804,17.88405,18.220305,3.2839737,9.9844707)
+resumen30 <- data.frame(Modelos = nombres, MAPES = MAPE)
+
+```
+
+```{r}
+resumen8
+```
+ 
+```{r}
+resumen30
+```
+
+Observen la diferencia entre el MAPE de el modelo 3 con la transformacion de logaritmo al momento de predecir 30 a 8 datos, es un MAPE de casi la mitad al momento de predecir mas datos
+
+## Modelo teniendo en cuenta los outliers
+
+Ya que el modelo mas optimo para nosotros fue el modelo 3 con la transformacion logaritmica se va a proceder a hacer un nuevo modelo teniendo en cuenta los outliers dentro del 
+ 
+```{r}
+delta <- seq(0.05, 0.95, 0.05)
+aic_1 <- vector()
+ljungbox1 <- vector()
+i = 0
+```
+
+
+```{r,cache=TRUE}
+
+for(d in delta){
+  i = i+1
+  modelo_outl <- tso(test3_log, delta=d)
+  aic_1[i] <- modelo_outl$fit$aic
+  ljungbox1[i] <- checkresiduals(modelo_outl$fit,
+                                 plot = FALSE)$p.value
+}
+```
+
+```{r}
+which.min(aic_1)
+```
+
+```{r}
+delta[1]
+```
+
+
+```{r,cache=TRUE}
+modelof <- tso(train3_log, delta=0.05)
+modelof
+
+```
+
+Esto nos entrego otra caminata aleatoria, sin embargo esto no nos pasaba al momento de predecir 30 datos
+
+```{r}
+newxreg <- outliers.effects(modelof$outliers, length(train3_log) + 8)
+
+newxreg <- ts(newxreg[-seq_along(train3_log),])
+
+foremodelof <- forecast(modelof$fit, h= 8, xreg = newxreg)
+
+```
+
+```{r}
+accuracy(foremodelof, test3_log)
+```
+
+
+# Metodo holt para el modelo 3 tranformado a logaritmo
+
+```{r}
+logcierre <- log(ts(meta$Close))
+```
+
+```{r}
+cierrelog_par <-ts_split(logcierre, sample.out = 8)
+```
+
+```{r}
+train3_logHolt <- cierrelog_par$train
+test3_logHolt <- cierrelog_par$test
+```
+
+```{r}
+mod3logfore_holt <- holt(train3_logHolt, h =8)
+mod3logfore_holt$model
+```
+
+```{r}
+fore3log_holt <- forecast(mod3logfore_holt, h = 8)
+```
+
+```{r}
+accuracy(fore3log_holt, test3_logHolt)
+```
+
+```{r}
+test_forecast(logcierre, forecast.obj = mod3logfore_holt,
+  test = test3_logHolt)
+```
+
+
+ 
+# Comparacion de modelos 
+
+```{r}
+df_test<- data.frame(fecha= meta$Date[2633:2640], real= meta$Close[2633:2640],
+    pred1 = foremod3$mean, pred2 = fore3_holt$mean, 
+    li1=foremod3$lower[,2], ls1=foremod3$upper[,2],
+    li2=fore3_holt$lower[,2], ls2=fore3_holt$upper[,2])
+```
+
+```{r}
+df_test %>% ggplot(aes(x=fecha, y=real), col="black")+
+  geom_line()+
+  geom_line(aes(x=fecha, y=pred1),col="blue")+
+  geom_line(aes(x=fecha, y=li1),col="blue", lty=2)+
+  geom_line(aes(x=fecha, y=ls1),col="blue", lty=2)+
+  geom_line(aes(x=fecha, y=pred2),col="red")+
+  geom_line(aes(x=fecha, y=li2),col="red", lty=3)+
+  geom_line(aes(x=fecha, y=ls2),col="red", lty=3)
+
+```
+
+```{r}
+df_test_log<- data.frame(fecha= meta$Date[2632:2639], real= log(meta$Close[2632:2639]),
+                     pred1 = foremod3_log$mean, pred2 = foremodelof$mean, pred3 =fore3log_holt$mean,
+                     li1=foremod3_log$lower[,2], ls1=foremod3_log$upper[,2] ,
+                     li2= foremodelof$lower[,2], ls2= foremodelof$upper[,2],
+                     li3= fore3log_holt$lower[,2], ls3= fore3log_holt$upper[,2])
+                    
+```
+
+```{r}
+df_test_log %>% ggplot(aes(x=fecha, y=real), col="black")+
+  geom_line()+
+  geom_line(aes(x=fecha, y=pred1),col="blue")+
+  geom_line(aes(x=fecha, y=li1),col="blue", lty=2)+
+  geom_line(aes(x=fecha, y=ls1),col="blue", lty=2)+
+  geom_line(aes(x=fecha, y=pred2),col="red")+
+  geom_line(aes(x=fecha, y=li2),col="red", lty=3)+
+  geom_line(aes(x=fecha, y=ls2),col="red", lty=3)+
+  
+  geom_line(aes(x=fecha, y=pred3),col="magenta")+
+  geom_line(aes(x=fecha, y=li3),col="magenta",lty=3)+
+  geom_line(aes(x=fecha, y=ls3),col="magenta", lty=3)
+
+```
+
+
+## Por que dejamos este ultimo modelo y lo comparamos con el resto?
+Por que como se expreso antes al momento de cambiar los valores de testeo y ejecutar mas o menos predicciones los cambios son mas drasticos, por lo para futuras investigaciones con nuevos valores y diferentes fechas para los modelos podria ser util
+ 
+# Extra
+
+```{r}
+diseno <- model.matrix(~-1+meta$Open)
+colnames(diseno) <- "Open"
+modelo1 <- auto.arima(meta$Close, xreg = diseno,
+                      stepwise = F, approximation = F,stationary = F)
+modelo1
+```
+
+Se realizaron dos backtesting para nuestro modelo, uno para antes y otro para después del 6 de septiembre del 2021. Esta fecha corresponde al anuncio de Mark Zuckerberg sobre la ejecución de una nueva edición de la conferencia Connect, donde uno de los proyectos que tienen confirmada una actualización con la app de realidad virtual Horizon Worlds y el "Proyecto Cambria" (casco de realidad virtual), proyectos que le permitirían a los usuarios crear sus propias experiencias y reunirse en realidad virtual, convirtiendo el metaverso en una de las grandes apuestas de la compañía.
+
+```{r}
+diseno_test <- model.matrix(~-1+test$Open)
+colnames(diseno_test) = "Open"
+fore <- forecast(modelo1, xreg = diseno_test,
+                 h = nrow(test))
+```
+
+```{r}
+test$pred <- fore$mean
+test$li95 <- fore$lower[,2]
+test$ls95 <- fore$upper[,2]
+
+ggplot(meta, aes(x=Date, y=Close))+ geom_line()+
+  geom_line(data=test, aes(x=Date, y=pred), col="red")+
+  geom_line(data=test, aes(x=Date, y=li95), col="blue")+
+  geom_line(data=test, aes(x=Date, y=ls95), col="blue") + 
+  scale_x_date(limits = as.Date(c("2021-01-01","2022-10-14")))
+```
+
+
+```{r}
+#Zoom
+ggplot(meta, aes(x=Date, y=Close))+ geom_line()+
+  geom_line(data=test, aes(x=Date, y=pred), col="red")+
+  geom_line(data=test, aes(x=Date, y=li95), col="blue")+
+  geom_line(data=test, aes(x=Date, y=ls95), col="blue") + 
+  scale_x_date(limits = as.Date(c("2022-01-01","2022-10-14")))
+
+```
+
+Ésta es la gráfica con zoom del backtesting de antes del 6 de septiembre del 2021, podemos notar un decrecimiento brusco aproximadamente en febrero, para luego ir decreciendo progresivamente.
+
+```{r}
+#Ahora otro despues de la fecha 
+
+train2 <- meta %>% filter(Date >= as.Date("2021-09-06") & Date < as.Date("2022-10-02"))  
+test2 <- meta %>% filter(Date >= as.Date("2022-10-02"))
+
+colnames(diseno_test) = "Open"
+
+diseno2 <- model.matrix(~-1+meta$Open)
+colnames(diseno2) <- "Open"
+modelo2 <- auto.arima(meta$Close, xreg = diseno2,
+                      stepwise = F, approximation = F,stationary = F)
+modelo2
+```
+
+```{r}
+diseno_test2 <- model.matrix(~-1+test2$Open)
+colnames(diseno_test2) <- "Open"
+fore2 <- forecast(modelo2, xreg = diseno_test2,
+                  h = nrow(test))
+test2$pred <- fore2$mean
+test2$li95 <- fore2$lower[,2]
+test2$ls95 <- fore2$upper[,2]
+
+ggplot(meta, aes(x=Date, y=Close))+ geom_line()+
+  geom_line(data=test2, aes(x=Date, y=pred), col="red")+
+  geom_line(data=test2, aes(x=Date, y=li95), col="blue")+
+  geom_line(data=test2, aes(x=Date, y=ls95), col="blue") + 
+  scale_x_date(limits = as.Date(c("2021-01-01","2022-10-14")))
+```
+
+```{r}
+#Zoom
+ggplot(meta, aes(x=Date, y=Close))+ geom_line()+
+  geom_line(data=test2, aes(x=Date, y=pred), col="red")+
+  geom_line(data=test2, aes(x=Date, y=li95), col="blue")+
+  geom_line(data=test2, aes(x=Date, y=ls95), col="blue") + 
+  scale_x_date(limits = as.Date(c("2022-06-12","2022-10-14")))
+```
+
+
+## CONCLUSIONES
+
+![](im1.jpg){width='700px'}
+
+https://www.bbc.com/mundo/noticias-60244251?fbclid=IwAR0Src32Ug3wxSXviPRurn_F9cXH5ltbW6ffNS90D6w98Z4yUSf_LjfYqlY
+
+- Mark Zuckerberg afirma que el crecimiento de las ventas de la empresa se vió afectado porque las audiencias, especialmente los usuarios más jóvenes, se fueron a la competencia, como TikTok y YouTube. Además, los anunciantes también han estado recortando gastos.
+- Algo no anda bien desde hace tiempo. En septiembre del 2021, The Wall Street Journal reveló, como parte de su investigación llamada "The Facebook files", que la compañía sabía que Instagram era una red social tóxica para muchos adolescentes, en especial mujeres. Esta investigación muestra que la plataforma puede dañar la salud mental y la imagen corporal.
+Esto se suma a los demás problemas que han surgido anteriormente como:
+Difusión de información errónea sobre las elecciones de EEUU de 2016.
+El escándalo de Cambridge Analytica sobre filtración de datos en 2018.
+El boicot de grandes marcas contra Facebook en 2020 por no hacer lo suficiente para frenar los mensajes con discurso de odio y desinformación.
+
+- Nuestra capacidad computacional es limitada, sin embargo, podemos darnos una idea de los pronósticos que tiene esta empresa billonaria, pues con el despido del 13% de sus empleados y ofreciendo "terrenos virtuales" como indemnización, el futuro no se ve muy claro para la compañía.
+A pesar de ello, con el cambio de propietario de Twitter a manos del magnate Elon Musk, podrían poner en camino algunas visiones del metaverso. Los trabajadores del sector tecnológico, como desarrolladores de software e ingenieros, tienen altas probabilidades de encontrar nuevos empleos ante la demanda de dichas habilidades en la implementación de tecnologías en las empresas.
+
+# Fin
+
+
+
